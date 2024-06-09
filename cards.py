@@ -36,13 +36,12 @@ class Mushi(Card):
         super().__init__(Name, ID, Cost)
         self.HP         = HP
         self.Color      = Color
-        self.Tap        = False
         self.Kyokas     = []
         self.AtkList    = []
         self.HPBuff     = 0
         self.AtkBuff    = 0
-        self.HP_result  = 0
-        self.Atk_result = 0
+        self.Blocker    = False
+        self.Refresh()
         
     def Refresh(self):
         self.HP_result  = self.HP + self.HPBuff
@@ -55,7 +54,7 @@ class Mushi(Card):
     def Damage(self, Damage_i:int, Color:str):
         dam_result = Damage_i*2 if WeakDic.get(self.Color) == Color else Damage_i
         self.HP_result -= dam_result
-        print("\n" + self.Name + " に " + str(dam_result) + " のダメージ")
+        print("\n" + self.Name + " に " + str(dam_result) + " のダメージ！！")
         if self.HP_result <= 0:
             print(self.Name + " は破壊された\n")
             self._Broke()
@@ -78,7 +77,7 @@ class Mushi(Card):
     def _BuffAtk(self, Target, DamageAndBuff:List[int], Color:str):
         self.Tap = True
         if issubclass(type(Target), Mushi):
-            r = Target.Damage(Damage_i+self.Atk_result, Color)
+            r = Target.Damage(DamageAndBuff[0]+self.Atk_result, Color)
         else:
             Target.P_Damage(True)
             r = False
@@ -91,6 +90,7 @@ class Mushi(Card):
     def _EnUraAtk(self, Target, Damage_i:int, Color:str):
         self.Tap = True
         if issubclass(type(Target), Mushi):
+            print("enura true")
             Target.Ura = True
         else:
             Target.P_Damage(True)
@@ -138,5 +138,20 @@ class Kabutomushi(Mushi):
     def _EnUraAtk(self, Target, Damage_i:int, Color:str):
         return super()._EnUraAtk(Target, Damage_i, Color)
     
+    def Play(self):
+        pass
+        
+class Namiageha(Mushi):
+    def __init__(self):
+        super().__init__("ナミアゲハ", "0", 4, 1100, 'Blue')
+        self.AtkList = [{'method':self._SimpleAtk, 'name':"すいつくす", 'damage':300}]
+        self.Blocker = True
+        
+    def Refresh(self):
+        super().Refresh()
+    
+    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
+        return super()._SimpleAtk(Target, Damage_i, Color)
+        
     def Play(self):
         pass

@@ -6,6 +6,18 @@
 import random
 from cards import *
 
+def IntInputLoop(message:str, end:int, start:int=0):
+    print()
+    while True:
+        res = int(input(message))
+        print("\n====================================================================\n")
+        if start <= res and res <= end:
+            break
+        else:
+            print("入力値が範囲外です(適正入力値: " + str(start) + "~" + str(end) + ")")
+            
+    return res
+
 class Player:
     def __init__(self, Name:str, Deck:List[Card]):
         self.__Deck         = Deck.copy()   # 山札
@@ -43,10 +55,10 @@ class Player:
         print("コスト: " + str(self.Costs) + " / " + str(len(self.__Esaba)))
         print()
         
-    def OppInfo(self):
+    def OppInfo(self, MushiShow=False):
         print(self.Opp.Name)
         print("場　　: ")
-        self.PrintCards(self.Opp.__BattleZone, UraShow=False)
+        self.PrintCards(self.Opp.__BattleZone, UraShow=False, MushiShow=MushiShow)
         print("手札　: " + str(len(self.Opp.__Hands)))
         print("縄張り: " + str(len(self.Opp.__Nawabari)))
         print("山札　: " + str(len(self.Opp.__Deck)))
@@ -56,17 +68,31 @@ class Player:
     def OppRefresh(self, Opp:'Player'):
         self.Opp = Opp
       
+    def GetBZLen(self):
+        return len(self.__BattleZone)
+      
     def ShuffleDeck(self):
         random.shuffle(self.__Deck)
         # self.PrintCards(self.__Deck)
         
-    def PrintCards(self, Cards:List[Card], AddNum=0, UraShow=True):
+    def PrintCards(self, Cards:List[Card], AddNum=0, UraShow=True, MushiShow=False):
+        IsBlocker = False
+        for i in Cards:
+            if (not i.Ura) and i.Blocker:
+                IsBlocker = True
+                break
         for i in range(len(Cards)):
+            if issubclass(type(Cards[i]), Mushi):
+                if not Cards[i].Blocker and MushiShow and IsBlocker:
+                    continue
             if Cards[i].Ura:
                 if UraShow:
                     print(str(i+AddNum) + ": ???")
             else:
-                print(str(i+AddNum) + ": " + Cards[i].Name + "\tC:" + str(Cards[i].Cost))
+                message = str(i+AddNum) + ": " + Cards[i].Name + "\tC:" + str(Cards[i].Cost)
+                if MushiShow:
+                    message += "\t"+str(Cards[i].HP_result)+"\t"+Cards[i].Color
+                print(message)
     
     def CntCost(self):
         self.Costs = len(self.__Esaba)
@@ -117,21 +143,20 @@ class Player:
         print("攻撃: ")
         for Atk in range(len(Mushi.AtkList)):
             print(str(Atk) + ": " + Mushi.AtkList[Atk]['name'] + " " + str(Mushi.AtkList[Atk]['damage']) + " (+" + str(Mushi.Atk_result) + ")")
-        select_num = int(input("\n使用する攻撃を選んでください（攻撃しない場合は-1）: "))
+        select_atk = IntInputLoop("使用する攻撃を選んでください（攻撃しない場合は-1）: ", len(Mushi.AtkList)-1, -1)
         
-        if select_num != -1:
-            if len(self.Opp.__BattleZone) > 0:
-                self.OppInfo()
-                select_num = int(input("\n対象を選んでください（キャンセルする場合は-1）: "))
-                if select_num != -1:
-                    if Mushi.AtkList[select_num]['method'](self.Opp.__BattleZone[select_num], Mushi.AtkList[select_num]['damage'], Mushi.Color):
-                        self.Opp.BrokeMushi(select_num, True)
-                else:
-                    return
-            else:
-                Mushi.AtkList[select_num]['method'](self.Opp, Mushi.AtkList[select_num]['damage'], Mushi.Color)
-        else:
+        if select_atk == -1:
             return
+        if len(self.Opp.__BattleZone) > 0:
+            self.OppInfo(MushiShow=True)
+            select_mushi = IntInputLoop("対象を選んでください（キャンセルする場合は-1）: ", self.Opp.GetBZLen()-1, -1)
+            if select_mushi != -1:
+                if Mushi.AtkList[select_atk]['method'](self.Opp.__BattleZone[select_mushi], Mushi.AtkList[select_atk]['damage'], Mushi.Color):
+                    self.Opp.BrokeMushi(select_mushi, True)
+            else:
+                return
+        else:
+            Mushi.AtkList[select_atk]['method'](self.Opp, Mushi.AtkList[select_atk]['damage'], Mushi.Color)
 
     def TurnStart(self, Opp:'Player'):
         self.OppRefresh(Opp)
@@ -142,20 +167,20 @@ class Player:
             self.Draw()
             self.CntCost()
             self.MyInfo()
-            self.PutCost(int(input("餌に置くカードを選んでください（置かないなら-1）: ")))
+            self.PutCost(IntInputLoop("餌に置くカードを選んでください（置かないなら-1）: ", len(self.__Hands)-1, -1))
             self.CntCost()
             
             while True:
                 self.OppInfo()
                 self.MyInfo()
                 select_num = int(input("プレイするカードを選択してください（ターンエンドは-1）: "))
+                print("\n====================================================================\n")
                 if select_num != -1:
                     if (select_num-20) < 0:
                         self.Play(select_num)
                     elif (select_num-40) < 0:
                         self.AtkMushi(select_num-20)
                 else:
-                    print()
                     break
             self.TurnEnd()
 
@@ -167,16 +192,18 @@ class Player:
         if Direct:
             self.P_Damage(False)
 
-    def P_Damage(self, Direct:bool):
+    def P_Damage(self, P_Direct:bool):
+        if P_Direct:
+            print(self.Name + " への直接攻撃！！")
         if len(self.__Nawabari) > 0:
+            print(self.Name + " の縄張りが1枚破壊された\n")
             print(self.Name + "\n縄張り:")
             self.PrintCards(self.__Nawabari)
-            select_num = int(input("\n引く縄張りを選んでください: "))
-            print()
+            select_num = IntInputLoop("引く縄張りを選んでください: ", len(self.__Nawabari)-1)
             draw_nawabari = self.__Nawabari.pop(select_num)
             draw_nawabari.Ura = False
             self.__Hands.append(draw_nawabari)
-        elif Direct:
+        elif P_Direct:
             self.Lose()
 
     def Lose(self):
@@ -184,8 +211,8 @@ class Player:
         self.GameSet = True
 
 def test():
-    deck_1 = []
-    for i in range(20):
+    deck_1 = [Ginyanma(), Ginyanma(), Kabutomushi(), Kabutomushi(), Namiageha(), Namiageha()]
+    for i in range(16):
         deck_1.append(SampleM())
     deck_2 = []
     for i in range(20):
