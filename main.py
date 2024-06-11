@@ -64,23 +64,14 @@ class Player:
         print("山札　: " + str(len(self.Opp.__Deck)))
         print("コスト: " + str(self.Opp.Costs) + " / " + str(len(self.Opp.__Esaba)))
         print()
-      
-    def OppRefresh(self, Opp:'Player'):
-        self.Opp = Opp
-      
-    def GetBZLen(self):
-        return len(self.__BattleZone)
-      
-    def ShuffleDeck(self):
-        random.shuffle(self.__Deck)
-        # self.PrintCards(self.__Deck)
         
     def PrintCards(self, Cards:List[Card], AddNum=0, UraShow=True, MushiShow=False):
         IsBlocker = False
         for i in Cards:
-            if (not i.Ura) and i.Blocker:
-                IsBlocker = True
-                break
+            if MushiShow:
+                if (not i.Ura) and i.Blocker:
+                    IsBlocker = True
+                    break
         for i in range(len(Cards)):
             if issubclass(type(Cards[i]), Mushi):
                 if not Cards[i].Blocker and MushiShow and IsBlocker:
@@ -93,7 +84,17 @@ class Player:
                 if MushiShow:
                     message += "\t"+str(Cards[i].HP_result)+"\t"+Cards[i].Color
                 print(message)
-    
+       
+    def OppRefresh(self, Opp:'Player'):
+        self.Opp = Opp
+      
+    def GetBZLen(self):
+        return len(self.__BattleZone)
+      
+    def ShuffleDeck(self):
+        random.shuffle(self.__Deck)
+        # self.PrintCards(self.__Deck)
+
     def CntCost(self):
         self.Costs = len(self.__Esaba)
         return self.Costs
@@ -112,6 +113,25 @@ class Player:
     def PlayMushi(self, Mushi:'Mushi'):
         self.__BattleZone.append(Mushi)
 
+    def PlayJutsu(self, Jutsu:'Jutsu'):
+        if Jutsu.Choosable:
+            pass
+        else:
+            Jutsu.Play()
+            
+        if Jutsu.Charge:
+            self.__Esaba.append(Jutsu)
+        else:
+            self.__Bochi.append(Jutsu)
+
+    def PlayKyoka(self, Kyoka:'Kyoka'):
+        self.PrintCards(self.__BattleZone, UraShow=False)
+        select_mushi = IntInputLoop("対象を選んでください: ", self.GetBZLen()-1)
+        self.__BattleZone[select_mushi].Kyokas.append(Kyoka)
+        
+        if Kyoka.Buffer:
+            self.__BattleZone[select_mushi].DirectHPBuff(Kyoka.BuffList[0])
+
     def Play(self, Num:int):
         p_card = self.__Hands[Num]
         if p_card.Cost <= self.Costs:
@@ -123,9 +143,14 @@ class Player:
         if issubclass(type(p_card), Mushi):
             self.PlayMushi(p_card)
         elif issubclass(type(p_card), Jutsu):
-            print("術カードです")
+            self.PlayJutsu(p_card)
         elif issubclass(type(p_card), Kyoka):
-            print("強化カードです")
+            if self.GetBZLen() != 0:
+                self.PlayKyoka(p_card)
+            else:
+                print("強化対象が存在しません")
+                self.__Hands.append(p_card)
+                return
         else:
             print("不明なカードです")
             return
@@ -170,7 +195,7 @@ class Player:
             self.PutCost(IntInputLoop("餌に置くカードを選んでください（置かないなら-1）: ", len(self.__Hands)-1, -1))
             self.CntCost()
             
-            while True:
+            while not (self.GameSet or self.Opp.GameSet):
                 self.OppInfo()
                 self.MyInfo()
                 select_num = int(input("プレイするカードを選択してください（ターンエンドは-1）: "))
@@ -211,8 +236,11 @@ class Player:
         self.GameSet = True
 
 def test():
-    deck_1 = [Ginyanma(), Ginyanma(), Kabutomushi(), Kabutomushi(), Namiageha(), Namiageha()]
-    for i in range(16):
+    deck_1 = [GinYanma(), GinYanma(), KabutoMushi(), KabutoMushi(), 
+              NamiAgeha(), NamiAgeha(), KooniYanma(), KooniYanma(),
+              Akiakane(), Akiakane(), IbukiOfMushi(), IbukiOfMushi(),
+              MinoKaku(), MinoKaku()]
+    for i in range(6):
         deck_1.append(SampleM())
     deck_2 = []
     for i in range(20):
