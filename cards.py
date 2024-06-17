@@ -7,12 +7,13 @@ from abc import ABC,abstractmethod
 WeakDic = {'Red':'Blue', 'Blue':'Green', 'Green':'Red'}
 
 class Card(ABC):
-    def __init__(self, Name:str, ID:str, Cost:int):
+    def __init__(self, Owner:'Player', Name:str, ID:str, Cost:int):
         self.Name   = Name
         self.ID     = ID
         self.Cost   = Cost
         self.Ura    = False
         self.Charge = False
+        self.Owner  = Owner
     
     @abstractmethod
     def Play(self):
@@ -21,26 +22,33 @@ class Card(ABC):
 # 術カード実装
 
 class Jutsu(Card):
-    def __init__(self, Name:str, ID:str, Cost:int):
-        super().__init__(Name, ID, Cost)
+    def __init__(self, Owner:'Player', Name:str, ID:str, Cost:int):
+        super().__init__(Owner, Name, ID, Cost)
         self.Choosable = False
         
     def Play(self):
         pass
 
 class IbukiOfMushi(Jutsu):
-    def __init__(self):
-        super().__init__("蟲の息吹", "MUSHI 127/130", 1)
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "蟲の息吹", "MUSHI 127/130", 1)
         self.Charge = True
 
     def Play(self):
-        pass
+        self.Owner.MoveCard(self, self.Owner.__Hands, self.Owner.__Esaba)
+
+class Bakunetsu(Jutsu):
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "塵芥虫の爆熱弾", "MUSHI 124/130", 1)
+
+    def Play(self):
+        self.Owner.Opp.PrintBattleZone(HideUra=True)
 
 # 強化カード実装
 
 class Kyoka(Card):
-    def __init__(self, Name:str, ID:str, Cost:int):
-        super().__init__(Name, ID, Cost)
+    def __init__(self, Owner:'Player', Name:str, ID:str, Cost:int):
+        super().__init__(Owner, Name, ID, Cost)
         self.Buffer = False
         self.BuffList = []
     
@@ -48,8 +56,8 @@ class Kyoka(Card):
         pass
 
 class MinoKaku(Kyoka):
-    def __init__(self):
-        super().__init__("蓑虫の隠れ蓑", "MUSHI 106/130", 0)
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "蓑虫の隠れ蓑", "MUSHI 106/130", 0)
         self.Buffer = True
         self.BuffList = [500,0]
 
@@ -59,8 +67,8 @@ class MinoKaku(Kyoka):
 # 蟲カード実装
 
 class Mushi(Card):
-    def __init__(self, Name:str, ID:str, Cost:int, HP:int, Color:str):
-        super().__init__(Name, ID, Cost)
+    def __init__(self, Owner:'Player', Name:str, ID:str, Cost:int, HP:int, Color:str):
+        super().__init__(Owner, Name, ID, Cost)
         self.HP         = HP
         self.Color      = Color
         self.Kyokas     = []
@@ -68,6 +76,7 @@ class Mushi(Card):
         self.HPBuff     = 0
         self.AtkBuff    = 0
         self.Blocker    = False
+        self.Gitai      = False
         self.Refresh()
         
     def Refresh(self):
@@ -82,6 +91,7 @@ class Mushi(Card):
         self.AtkBuff    = 0
         self.Tap        = False
         self.Ura        = False
+        self.Gitai      = False
            
     def DirectHPBuff(self, BuffNum:int):
         print(self.Name + " のHPが " + str(BuffNum) + " 増えた")
@@ -134,11 +144,11 @@ class Mushi(Card):
         return False
             
     def Play(self):
-        pass
+        self.Owner.MoveCard(self)
             
 class SampleM(Mushi):
-    def __init__(self):
-        super().__init__("サンプルムシ", "0", 1, 100, 'Red')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "サンプルムシ", "0", 1, 100, 'Red')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"シンプルに攻撃", 'damage':100}, 
                         {'method':self._BuffAtk, 'name':"シンプルに強化", 'damage':[0,0,100]}]
     
@@ -149,55 +159,55 @@ class SampleM(Mushi):
         return super()._BuffAtk(Target, DamageAndBuff, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class GinYanma(Mushi):
-    def __init__(self):
-        super().__init__("ギンヤンマ", "MUSHI 6/130", 5, 1100, 'Red')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "ギンヤンマ", "MUSHI 6/130", 5, 1100, 'Red')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"とびかかる", 'damage':700}]
     
     def _SimpleAtk(self, Target, Damage_i:int, Color:str):
         return super()._SimpleAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class KooniYanma(Mushi):
-    def __init__(self):
-        super().__init__("コオニヤンマ", "MUSHI 11/130", 4, 800, 'Red')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "コオニヤンマ", "MUSHI 11/130", 4, 800, 'Red')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"とびかかる", 'damage':500}]
     
     def _SimpleAtk(self, Target, Damage_i:int, Color:str):
         return super()._SimpleAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class Akiakane(Mushi):
-    def __init__(self):
-        super().__init__("アキアカネ", "MUSHI 24/130", 2, 500, 'Red')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "アキアカネ", "MUSHI 24/130", 2, 500, 'Red')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"とびかかる", 'damage':200}]
     
     def _SimpleAtk(self, Target, Damage_i:int, Color:str):
         return super()._SimpleAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class NamiTentou(Mushi):
-    def __init__(self):
-        super().__init__("ナミテントウ", "MUSHI 30/130", 1, 300, 'Red')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "ナミテントウ", "MUSHI 30/130", 1, 300, 'Red')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"かみつぶす", 'damage':100}]
     
     def _SimpleAtk(self, Target, Damage_i:int, Color:str):
         return super()._SimpleAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class KabutoMushi(Mushi):
-    def __init__(self):
-        super().__init__("カブトムシ", "MUSHI 40/130", 4, 800, 'Blue')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "カブトムシ", "MUSHI 40/130", 4, 800, 'Blue')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"ツノ突進", 'damage':500},
                         {'method':self._EnUraAtk, 'name':"すくい投げ", 'damage':0}]
     
@@ -208,11 +218,11 @@ class KabutoMushi(Mushi):
         return super()._EnUraAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class NamiAgeha(Mushi):
-    def __init__(self):
-        super().__init__("ナミアゲハ", "MUSHI 44/130", 4, 1100, 'Blue')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "ナミアゲハ", "MUSHI 44/130", 4, 1100, 'Blue')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"すいつくす", 'damage':300}]
         self.Blocker = True
         
@@ -223,59 +233,59 @@ class NamiAgeha(Mushi):
         return super()._SimpleAtk(Target, Damage_i, Color)
         
     def Play(self):
-        pass
+        super().Play()
 
 class Kanaboon(Mushi):
-    def __init__(self):
-        super().__init__("カナブン", "MUSHI 63/130", 1, 300, 'Blue')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "カナブン", "MUSHI 63/130", 1, 300, 'Blue')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"たいあたり", 'damage':100}]
     
     def _SimpleAtk(self, Target, Damage_i:int, Color:str):
         return super()._SimpleAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class Higurashi(Mushi):
-    def __init__(self):
-        super().__init__("ヒグラシ", "MUSHI 64/130", 2, 200, 'Blue')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "ヒグラシ", "MUSHI 64/130", 2, 200, 'Blue')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"しぼりとる", 'damage':200}]
     
     def _SimpleAtk(self, Target, Damage_i:int, Color:str):
         return super()._SimpleAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class TonosamaBatta(Mushi):
-    def __init__(self):
-        super().__init__("トノサマバッタ", "MUSHI 71/130", 5, 1200, 'Green')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "トノサマバッタ", "MUSHI 71/130", 5, 1200, 'Green')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"くらいつく", 'damage':700}]
     
     def _SimpleAtk(self, Target, Damage_i:int, Color:str):
         return super()._SimpleAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class NijuyahoshiTentou(Mushi):
-    def __init__(self):
-        super().__init__("ニジュウヤホシテントウ", "MUSHI 91/130", 2, 300, 'Green')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "ニジュウヤホシテントウ", "MUSHI 91/130", 2, 300, 'Green')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"かみつぶす", 'damage':300}]
     
     def _SimpleAtk(self, Target, Damage_i:int, Color:str):
         return super()._SimpleAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
 
 class WataAburaMushi(Mushi):
-    def __init__(self):
-        super().__init__("ワタアブラムシ", "MUSHI 91/130", 1, 300, 'Green')
+    def __init__(self, Owner:'Player'):
+        super().__init__(Owner, "ワタアブラムシ", "MUSHI 91/130", 1, 300, 'Green')
         self.AtkList = [{'method':self._SimpleAtk, 'name':"とびかかる", 'damage':100}]
     
     def _SimpleAtk(self, Target, Damage_i:int, Color:str):
         return super()._SimpleAtk(Target, Damage_i, Color)
     
     def Play(self):
-        pass
+        super().Play()
