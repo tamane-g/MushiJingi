@@ -74,7 +74,7 @@ class Player:
                     break
         for i in range(len(Cards)):
             if issubclass(type(Cards[i]), Mushi):
-                if not Cards[i].Blocker and MushiShow and IsBlocker:
+                if MushiShow and ((not Cards[i].Blocker and IsBlocker) or (Cards[i].Gitai)):
                     continue
             if Cards[i].Ura:
                 if UraShow:
@@ -115,7 +115,13 @@ class Player:
 
     def PlayJutsu(self, Jutsu:'Jutsu'):
         if Jutsu.Choosable:
-            pass
+            self.OppInfo()
+            select_mushi = IntInputLoop("対象を選んでください（キャンセルする場合は-1）: ", self.Opp.GetBZLen()-1, -1)
+            if select_mushi == -1:
+                return 0
+            else:
+                if Jutsu.Play(self.Opp.__BattleZone[select_mushi]):
+                    self.Opp.BrokeMushi(select_mushi, False)
         else:
             Jutsu.Play()
             
@@ -143,7 +149,8 @@ class Player:
         if issubclass(type(p_card), Mushi):
             self.PlayMushi(p_card)
         elif issubclass(type(p_card), Jutsu):
-            self.PlayJutsu(p_card)
+            if self.PlayJutsu(p_card) == 0:
+                self.__Hands.append(p_card)
         elif issubclass(type(p_card), Kyoka):
             if self.GetBZLen() != 0:
                 self.PlayKyoka(p_card)
@@ -227,7 +234,21 @@ class Player:
             select_num = IntInputLoop("引く縄張りを選んでください: ", len(self.__Nawabari)-1)
             draw_nawabari = self.__Nawabari.pop(select_num)
             draw_nawabari.Ura = False
-            self.__Hands.append(draw_nawabari)
+            print(draw_nawabari.Name + "を引きました")
+            for i in self.__BattleZone:
+                if i.Tobidasu:
+                    self.__Hands.append(draw_nawabari)
+            if issubclass(type(draw_nawabari), Mushi):
+                if draw_nawabari.Tobidasu:
+                    print(draw_nawabari.Name + "は＜とびだす＞を持っている！場に出しますか？\n0: 場に出さない\n1: 場に出す")
+                    select_num = IntInputLoop("入力: ", 1)
+                    if select_num == 0:
+                        self.__Hands.append(draw_nawabari)
+                    else:
+                        self.__BattleZone.append(draw_nawabari)
+            else:
+                self.__Hands.append(draw_nawabari)
+
         elif P_Direct:
             self.Lose()
 
@@ -239,9 +260,8 @@ def test():
     deck_1 = [GinYanma(), GinYanma(), KabutoMushi(), KabutoMushi(), 
               NamiAgeha(), NamiAgeha(), KooniYanma(), KooniYanma(),
               Akiakane(), Akiakane(), IbukiOfMushi(), IbukiOfMushi(),
-              MinoKaku(), MinoKaku()]
-    for i in range(6):
-        deck_1.append(SampleM())
+              MinoKaku(), MinoKaku(), Bakunetsu(), Bakunetsu(),
+              MinZemi(), MinZemi(), NamiYou(), NamiYou()]
     deck_2 = []
     for i in range(20):
         deck_2.append(SampleM())
