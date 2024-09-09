@@ -19,7 +19,6 @@ class Card(ABC):
         pass
 
 # 術カード実装
-
 class Jutsu(Card):
     def __init__(self, Name:str, ID:str, Cost:int):
         super().__init__(Name, ID, Cost)
@@ -45,7 +44,6 @@ class Bakunetsu(Jutsu):
         return Mushi.Damage(600, None)
 
 # 強化カード実装
-
 class Kyoka(Card):
     def __init__(self, Name:str, ID:str, Cost:int):
         super().__init__(Name, ID, Cost)
@@ -65,7 +63,6 @@ class MinoKaku(Kyoka):
         pass
 
 # 蟲カード実装
-
 class Mushi(Card):
     def __init__(self, Name:str, ID:str, Cost:int, HP:int, Color:str):
         super().__init__(Name, ID, Cost)
