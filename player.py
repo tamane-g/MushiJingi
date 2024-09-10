@@ -66,7 +66,7 @@ class Player:
             AtkMushiChoice(): 虫の攻撃対象を選択し、攻撃を行う。
             TurnStart(): プレイヤーのターン中の行動を処理する。
             TurnEnd(): プレイヤーのターン終了時の処理を行う（つもり）。
-            P_Damage(): プレイヤーへのダメージの処理を行う。
+            PlayerDamage(): プレイヤーへのダメージの処理を行う。
             Lose(): 敗北処理を行う。
     
     """
@@ -247,9 +247,7 @@ class Player:
 
     def AtkMushiChoice(self, Mushi: 'Mushi') -> None:
         print("\n" + Mushi.Name)
-        print("攻撃: ")
-        for Atk in range(len(Mushi.Atklist)):
-            print(str(Atk) + ": " + Mushi.Atklist[Atk]['name'] + " " + str(Mushi.Atklist[Atk]['damage']) + " (+" + str(Mushi.Atk_result) + ")")
+        self.ShowMushiWaza(Mushi)
         select_atk = IntInputLoop("使用する攻撃を選んでください（攻撃しない場合は-1）: ", len(Mushi.Atklist)-1, -1)
         
         if select_atk == -1:
@@ -258,12 +256,21 @@ class Player:
             self.ShowEnemyAttackableMushiInfo()
             select_mushi = IntInputLoop("対象を選んでください（キャンセルする場合は-1）: ", self.EnemyPlayer.GetBZLen()-1, -1)
             if select_mushi != -1:
-                if Mushi.Atklist[select_atk]['method'](self.EnemyPlayer.__BattleZone[select_mushi], Mushi.Atklist[select_atk]['damage'], Mushi.Color):
-                    self.EnemyPlayer.BrokeMushi(select_mushi, True)
+                self.AtkMushiExecute(Mushi, select_atk, self.EnemyPlayer.__BattleZone[select_mushi])
             else:
                 return
         else:
-            Mushi.Atklist[select_atk]['method'](self.EnemyPlayer, Mushi.Atklist[select_atk]['damage'], Mushi.Color)
+            self.AtkMushiExecute(Mushi, select_atk, self.EnemyPlayer)
+
+    def ShowMushiWaza(self, Mushi: 'Mushi') -> None:
+        print("攻撃: ")
+        for Atk in range(len(Mushi.Atklist)):
+            print(str(Atk) + ": " + Mushi.Atklist[Atk]['name'] + " " + str(Mushi.Atklist[Atk]['damage']) + " (+" + str(Mushi.Atk_result) + ")")
+
+    def AtkMushiExecute(self, Mushi: 'Mushi', select_atk: int, Target: 'Mushi'|'Player'):
+        if Mushi.Atklist[select_atk]['method'](Target, Mushi.Atklist[select_atk]['damage'], Mushi.Color):
+            if isinstance(Target, Mushi):
+                self.EnemyPlayer.BrokeMushi(self.EnemyPlayer.__BattleZone.index(Target), True)
 
     def TurnStart(self, EnemyPlayer: 'Player') -> None:
         self.EnemyPlayerRefresh(EnemyPlayer)
@@ -297,11 +304,12 @@ class Player:
     def BrokeMushi(self, MushiNum: int, Direct: bool) -> None:
         self.__Bochi.append(self.__BattleZone.pop(MushiNum))
         if Direct:
-            self.P_Damage(False)
+            self.PlayerDamage(False)
 
-    def P_Damage(self, P_Direct: bool) -> None:
-        if P_Direct:
+    def PlayerDamage(self, Direct: bool) -> None:
+        if Direct:
             print(self.Name + " への直接攻撃！！")
+            
         if len(self.__Nawabari) > 0:
             print(self.Name + " の縄張りが1枚破壊された\n")
             print(self.Name + "\n縄張り:")
@@ -310,9 +318,11 @@ class Player:
             draw_nawabari = self.__Nawabari.pop(select_num)
             draw_nawabari.Ura = False
             print(draw_nawabari.Name + "を引きました")
+            
             for i in self.__BattleZone:
                 if i.Tobidasu:
                     self.__Hands.append(draw_nawabari)
+                    
             if issubclass(type(draw_nawabari), Mushi):
                 if draw_nawabari.Tobidasu:
                     print(draw_nawabari.Name + "は＜とびだす＞を持っている！場に出しますか？\n0: 場に出さない\n1: 場に出す")
@@ -324,7 +334,7 @@ class Player:
             else:
                 self.__Hands.append(draw_nawabari)
 
-        elif P_Direct:
+        elif Direct:
             self.Lose()
 
     def Lose(self) -> None:

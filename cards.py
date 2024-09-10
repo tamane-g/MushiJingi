@@ -90,7 +90,7 @@ class Mushi(Card):
         self.Tap        = False
         self.Ura        = False
         self.Gitai      = False
-           
+        
     def DirectHPBuff(self, BuffNum:int):
         print(self.Name + " のHPが " + str(BuffNum) + " 増えた")
         self.HP_result += BuffNum
@@ -145,7 +145,7 @@ class Mushi(Card):
             r = False
         
         return r
-           
+        
     def _EnUraAtk(self, Target, Damage_i:int, Color:str):
         self.Tap = True
         if issubclass(type(Target), Mushi):
@@ -158,7 +158,7 @@ class Mushi(Card):
             
     def Play(self):
         pass
-            
+
 class SampleM(Mushi):
     def __init__(self):
         super().__init__("サンプルムシ", "0", 1, 100, 'Red')
