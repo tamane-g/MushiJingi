@@ -10,6 +10,7 @@ Playerクラス定義
 """
 
 import random
+from typing import Union
 from cards import Card, Mushi, Jutsu, Kyoka
 
 
@@ -62,8 +63,8 @@ class Player:
             PlayMushi(): 虫カードをプレイする。
             PlayJutsu(): 術カードをプレイする。対象選択が必要な術なら対象選択を行わせる。
             PlayKyoka(): 強化カードをプレイする。自プレイヤーの虫から対象選択を行わせる。
-            AtkMushi(): 入力された番号に対応した場の虫が攻撃可能かどうかを判定する。
-            AtkMushiChoice(): 虫の攻撃対象を選択し、攻撃を行う。
+            AttackMushi(): 入力された番号に対応した場の虫が攻撃可能かどうかを判定する。
+            AttackMushiChoice(): 虫の攻撃対象を選択し、攻撃を行う。
             TurnStart(): プレイヤーのターン中の行動を処理する。
             TurnEnd(): プレイヤーのターン終了時の処理を行う（つもり）。
             PlayerDamage(): プレイヤーへのダメージの処理を行う。
@@ -108,23 +109,25 @@ class Player:
 
         """
         IsBlocker = False
-        for Card in Cards:
-            if MushiShow and isinstance(Card, Mushi):
-                if (not Card.Ura) and Card.Blocker:
-                    IsBlocker = True
-                    break
+        if MushiShow:
+            for Card in Cards:
+                if isinstance(Card, Mushi):
+                    if (not Card.Ura) and Card.Blocker:
+                        IsBlocker = True
+                        break
 
         for i in range(len(Cards)):
-            if isinstance(Cards[i], Mushi):
-                if MushiShow and ((not Cards[i].Blocker and IsBlocker) or (Cards[i].Gitai)):
+            Card = Cards[i]
+            if isinstance(Card, Mushi):
+                if MushiShow and ((not Card.Blocker and IsBlocker) or (Card.Gitai)):
                     continue
-            if Cards[i].Ura:
+            if Card.Ura:
                 if UraShow:
                     print(str(i+AddNum) + ": ???")
             else:
-                message = str(i+AddNum) + ": " + Cards[i].Name + "\tC:" + str(Cards[i].Cost)
+                message = str(i+AddNum) + ": " + Card.Name + "\tC:" + str(Card.Cost)
                 if MushiShow:
-                    message += "\t"+str(Cards[i].HP_result)+"\t"+Cards[i].Color
+                    message += "\t"+str(Card.HP_result)+"\t"+Card.Color
                 print(message)
 
     def ShowMyInfo(self) -> None:
@@ -158,12 +161,20 @@ class Player:
     def ShowChoosableMushiInfo(self) -> None:
         self.PrintCards(self.__BattleZone, UraShow=False)
 
-    def EnemyPlayerRefresh(self, EnemyPlayer:'Player') -> None:
+    def ShowNawabariInfo(self) -> None:
+        print(self.Name + "\n縄張り:")
+        self.PrintCards(self.__Nawabari)
+
+    def EnemyPlayerRefresh(self, EnemyPlayer: 'Player') -> None:
         self.EnemyPlayer = EnemyPlayer
-      
+    
+    def BattleZoneRefresh(self) -> None:
+        for MyMushi in self.__BattleZone:
+            MyMushi.Refresh()
+    
     def GetBZLen(self) -> int:
         return len(self.__BattleZone)
-      
+    
     def ShuffleDeck(self) -> None:
         random.shuffle(self.__Deck)
         # self.PrintCards(self.__Deck)
@@ -171,19 +182,23 @@ class Player:
     def CntCost(self) -> int:
         self.Costs = len(self.__Esaba)
         return self.Costs
-    
+
     def Draw(self) -> Card:
         drawed = self.__Deck.pop(0)
         self.__Hands.append(drawed)
         return drawed
-        
-    def PutCost(self, Num: int) -> None:
-        if Num != -1:
-            put = self.__Hands.pop(Num)
-            self.__Esaba.append(put)
-            print("\n" + put.Name + " をエサ場にセットしました\n")
 
-    def PlayMushi(self, Mushi: 'Mushi') -> None:
+    def PutCost(self, Num: int) -> None:
+        put = self.__Hands.pop(Num)
+        self.__Esaba.append(put)
+        print("\n" + put.Name + " をエサ場にセットしました\n")
+
+    def CostSelectAndPut(self) -> None:
+        select_num = IntInputLoop("餌に置くカードを選んでください（置かないなら-1）: ", len(self.__Hands)-1, -1)
+        if select_num != -1:
+            self.PutCost(select_num)
+
+    def PlayMushi(self, Mushi: Mushi) -> None:
         self.__BattleZone.append(Mushi)
 
     def PlayJutsu(self, Jutsu: 'Jutsu') -> None:
@@ -191,10 +206,9 @@ class Player:
             self.ShowEnemyPlayerInfo()
             select_mushi = IntInputLoop("対象を選んでください（キャンセルする場合は-1）: ", self.EnemyPlayer.GetBZLen()-1, -1)
             if select_mushi == -1:
-                return 0
-            else:
-                if Jutsu.Play(self.EnemyPlayer.__BattleZone[select_mushi]):
-                    self.EnemyPlayer.BrokeMushi(select_mushi, False)
+                return
+            if Jutsu.Play(self.EnemyPlayer.__BattleZone[select_mushi]):
+                self.EnemyPlayer.BrokeMushi(select_mushi, False)
         else:
             Jutsu.Play()
             
@@ -238,65 +252,73 @@ class Player:
         
         print("\n" + p_card.Name + " をプレイしました\n")
 
-    def AtkMushi(self, Num:int) -> None:
+    def AttackMushi(self, Num:int) -> None:
         mushi = self.__BattleZone[Num]
         if mushi.Tap:
             print("\n攻撃済みです\n")
         else:
-            self.AtkMushiChoice(mushi)
+            self.AttackMushiChoice(mushi)
 
-    def AtkMushiChoice(self, Mushi: 'Mushi') -> None:
+    def AttackMushiChoice(self, Mushi: Mushi) -> None:
         print("\n" + Mushi.Name)
         self.ShowMushiWaza(Mushi)
-        select_atk = IntInputLoop("使用する攻撃を選んでください（攻撃しない場合は-1）: ", len(Mushi.Atklist)-1, -1)
+        select_attack = IntInputLoop("使用する攻撃を選んでください（攻撃しない場合は-1）: ", len(Mushi.AttackList)-1, -1)
         
-        if select_atk == -1:
+        if select_attack == -1:
             return
         if len(self.EnemyPlayer.__BattleZone) > 0:
             self.ShowEnemyAttackableMushiInfo()
             select_mushi = IntInputLoop("対象を選んでください（キャンセルする場合は-1）: ", self.EnemyPlayer.GetBZLen()-1, -1)
-            if select_mushi != -1:
-                self.AtkMushiExecute(Mushi, select_atk, self.EnemyPlayer.__BattleZone[select_mushi])
-            else:
+            if select_mushi == -1:
                 return
+            self.AttackMushiExecute(Mushi, select_attack, self.EnemyPlayer.__BattleZone[select_mushi])
         else:
-            self.AtkMushiExecute(Mushi, select_atk, self.EnemyPlayer)
+            self.AttackMushiExecute(Mushi, select_attack, self.EnemyPlayer)
 
-    def ShowMushiWaza(self, Mushi: 'Mushi') -> None:
+    def ShowMushiWaza(self, Mushi: Mushi) -> None:
         print("攻撃: ")
-        for Atk in range(len(Mushi.Atklist)):
-            print(str(Atk) + ": " + Mushi.Atklist[Atk]['name'] + " " + str(Mushi.Atklist[Atk]['damage']) + " (+" + str(Mushi.Atk_result) + ")")
+        for Attack in range(len(Mushi.AttackList)):
+            print(str(Attack) + ": " + Mushi.AttackList[Attack]['name'] + " " + str(Mushi.AttackList[Attack]['damage']) + " (+" + str(Mushi.Attack_result) + ")")
 
-    def AtkMushiExecute(self, Mushi: 'Mushi', select_atk: int, Target: 'Mushi'|'Player'):
-        if Mushi.Atklist[select_atk]['method'](Target, Mushi.Atklist[select_atk]['damage'], Mushi.Color):
+    def AttackMushiExecute(self, Mushi: Mushi, select_attack: int, Target: Union[Mushi, 'Player']):
+        if Mushi.AttackList[select_attack]['method'](Target, Mushi.AttackList[select_attack]['damage'], Mushi.Color):
             if isinstance(Target, Mushi):
                 self.EnemyPlayer.BrokeMushi(self.EnemyPlayer.__BattleZone.index(Target), True)
 
+    def PlayerActionLoop(self) -> None:
+        while not (self.GameSet or self.EnemyPlayer.GameSet):
+            self.ShowEnemyPlayerInfo()
+            self.ShowMyInfo()
+            select_num = int(input("プレイするカードを選択してください（ターンエンドは-1）: "))
+            print("\n====================================================================\n")
+            if select_num != -1:
+                if (select_num-20) < 0:
+                    self.Play(select_num)
+                elif (select_num-40) < 0:
+                    self.AttackMushi(select_num-20)
+            else:
+                return
+
     def TurnStart(self, EnemyPlayer: 'Player') -> None:
         self.EnemyPlayerRefresh(EnemyPlayer)
-        if not (self.GameSet or self.EnemyPlayer.GameSet):
-            for MyMushi in self.__BattleZone:
-                MyMushi.Refresh()
-            self.ShowEnemyPlayerInfo()
-            self.Draw()
-            self.CntCost()
-            self.ShowMyInfo()
-            self.PutCost(IntInputLoop("餌に置くカードを選んでください（置かないなら-1）: ", len(self.__Hands)-1, -1))
-            self.CntCost()
-            
-            while not (self.GameSet or self.EnemyPlayer.GameSet):
-                self.ShowEnemyPlayerInfo()
-                self.ShowMyInfo()
-                select_num = int(input("プレイするカードを選択してください（ターンエンドは-1）: "))
-                print("\n====================================================================\n")
-                if select_num != -1:
-                    if (select_num-20) < 0:
-                        self.Play(select_num)
-                    elif (select_num-40) < 0:
-                        self.AtkMushi(select_num-20)
-                else:
-                    break
-            self.TurnEnd()
+        
+        if self.GameSet or self.EnemyPlayer.GameSet:
+            return
+        
+        self.BattleZoneRefresh()
+        
+        self.Draw()
+        self.CntCost()
+        
+        self.ShowEnemyPlayerInfo()
+        self.ShowMyInfo()
+        
+        self.CostSelectAndPut()
+        self.CntCost()
+        
+        self.PlayerActionLoop()
+        
+        self.TurnEnd()
 
     def TurnEnd(self) -> None:
         pass
@@ -306,37 +328,52 @@ class Player:
         if Direct:
             self.PlayerDamage(False)
 
+    def IsTobidasuInBattleZone(self) -> bool:
+        return any(mushi.Tobidasu for mushi in self.__BattleZone)
+
+    def HasTobidasuCheck(self, draw_nawabari: Card) -> bool:
+        if issubclass(type(draw_nawabari), Mushi):
+            if draw_nawabari.Tobidasu:
+                print(draw_nawabari.Name + "は＜とびだす＞を持っている！場に出しますか？\n\n0: 場に出さない\n1: 場に出す")
+                play_tobidasu = IntInputLoop("入力: ", 1)
+                return bool(play_tobidasu)
+        return False
+
+    def DrawNawabariChoice(self) -> Card:
+        select_num = IntInputLoop("引く縄張りを選んでください: ", len(self.__Nawabari)-1)
+        draw_nawabari = self.DrawNawabari(select_num)
+        print(draw_nawabari.Name + "を引きました")
+        return draw_nawabari
+
+    def DrawNawabari(self, select_num: int) -> Card:
+        draw_nawabari = self.__Nawabari.pop(select_num)
+        draw_nawabari.Ura = False
+        return draw_nawabari
+
     def PlayerDamage(self, Direct: bool) -> None:
         if Direct:
             print(self.Name + " への直接攻撃！！")
             
         if len(self.__Nawabari) > 0:
-            print(self.Name + " の縄張りが1枚破壊された\n")
-            print(self.Name + "\n縄張り:")
-            self.PrintCards(self.__Nawabari)
-            select_num = IntInputLoop("引く縄張りを選んでください: ", len(self.__Nawabari)-1)
-            draw_nawabari = self.__Nawabari.pop(select_num)
-            draw_nawabari.Ura = False
-            print(draw_nawabari.Name + "を引きました")
+            print(self.Name + " の縄張りが1枚破壊された！\n")
+            self.ShowNawabariInfo()
             
-            for i in self.__BattleZone:
-                if i.Tobidasu:
-                    self.__Hands.append(draw_nawabari)
-                    
-            if issubclass(type(draw_nawabari), Mushi):
-                if draw_nawabari.Tobidasu:
-                    print(draw_nawabari.Name + "は＜とびだす＞を持っている！場に出しますか？\n0: 場に出さない\n1: 場に出す")
-                    select_num = IntInputLoop("入力: ", 1)
-                    if select_num == 0:
-                        self.__Hands.append(draw_nawabari)
-                    else:
-                        self.__BattleZone.append(draw_nawabari)
+            draw_nawabari = self.DrawNawabariChoice()
+            
+            if self.IsTobidasuInBattleZone():
+                self.__Hands.append(draw_nawabari)
+            elif self.HasTobidasuCheck(draw_nawabari):
+                self.PlayMushi(draw_nawabari)
+                print(draw_nawabari.Name + "がとびだした！\n")
             else:
                 self.__Hands.append(draw_nawabari)
 
         elif Direct:
             self.Lose()
+            
+        else:
+            print(self.Name + "は縄張りがないので縄張りを引かなかった！")
 
     def Lose(self) -> None:
-        print("\n" + self.Name + " の負けです")
+        print("\nゲームセット！！" + self.EnemyPlayer.Name + " の勝ち！")
         self.GameSet = True

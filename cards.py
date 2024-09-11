@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from typing import List
 from abc import ABC,abstractmethod
 
 WeakDic = {'Red':'Blue', 'Blue':'Green', 'Green':'Red'}
@@ -18,7 +17,6 @@ class Card(ABC):
     def Play(self):
         pass
 
-# 術カード実装
 class Jutsu(Card):
     def __init__(self, Name:str, ID:str, Cost:int):
         super().__init__(Name, ID, Cost)
@@ -27,23 +25,6 @@ class Jutsu(Card):
     def Play(self):
         pass
 
-class IbukiOfMushi(Jutsu):
-    def __init__(self):
-        super().__init__("蟲の息吹", "MUSHI 127/130", 1)
-        self.Charge = True
-
-    def Play(self):
-        pass
-
-class Bakunetsu(Jutsu):
-    def __init__(self):
-        super().__init__("塵芥虫の爆熱弾", "", 1)
-        self.Choosable = True
-        
-    def Play(self, Mushi:'Mushi'):
-        return Mushi.Damage(600, None)
-
-# 強化カード実装
 class Kyoka(Card):
     def __init__(self, Name:str, ID:str, Cost:int):
         super().__init__(Name, ID, Cost)
@@ -53,25 +34,15 @@ class Kyoka(Card):
     def Play(self):
         pass
 
-class MinoKaku(Kyoka):
-    def __init__(self):
-        super().__init__("蓑虫の隠れ蓑", "MUSHI 106/130", 0)
-        self.Buffer = True
-        self.BuffList = [500,0]
-
-    def Play(self):
-        pass
-
-# 蟲カード実装
 class Mushi(Card):
     def __init__(self, Name:str, ID:str, Cost:int, HP:int, Color:str):
         super().__init__(Name, ID, Cost)
         self.HP         = HP
         self.Color      = Color
         self.Kyokas     = []
-        self.AtkList    = []
+        self.AttackList    = []
         self.HPBuff     = 0
-        self.AtkBuff    = 0
+        self.AttackBuff    = 0
         self.Blocker    = False
         self.Gitai      = False
         self.Tobidasu   = False
@@ -81,12 +52,12 @@ class Mushi(Card):
         for kyoka in self.Kyokas:
             if kyoka.Buffer:
                 self.HPBuff += kyoka.BuffList[0]
-                self.AtkBuff += kyoka.BuffList[1]
+                self.AttackBuff += kyoka.BuffList[1]
         
         self.HP_result  = self.HP + self.HPBuff
-        self.Atk_result = self.AtkBuff
+        self.Attack_result = self.AttackBuff
         self.HPBuff     = 0
-        self.AtkBuff    = 0
+        self.AttackBuff    = 0
         self.Tap        = False
         self.Ura        = False
         self.Gitai      = False
@@ -113,63 +84,90 @@ class Mushi(Card):
     def _Broke(self):
         pass
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
         self.Tap = True
         if issubclass(type(Target), Mushi):
-            return Target.Damage(Damage_i+self.Atk_result, Color)
+            return Target.Damage(Damage_i+self.Attack_result, Color)
         else:
-            Target.P_Damage(True)
+            Target.PlayerDamage(True)
             return False
     
-    def _BuffAtk(self, Target, DamageAndBuff:List[int], Color:str):
+    def BuffAttack(self, Target, DamageAndBuff:list[int], Color:str):
         self.Tap = True
         if issubclass(type(Target), Mushi):
-            r = Target.Damage(DamageAndBuff[0]+self.Atk_result, Color)
+            r = Target.Damage(DamageAndBuff[0]+self.Attack_result, Color)
         else:
-            Target.P_Damage(True)
+            Target.PlayerDamage(True)
             r = False
             
         self.HPBuff  += DamageAndBuff[1]
-        self.AtkBuff += DamageAndBuff[2]
+        self.AttackBuff += DamageAndBuff[2]
         
         return r
     
-    def _DebuffAtk(self, Target, DamageAndBuff:List[int], Color:str):
+    def DebuffAttack(self, Target, DamageAndBuff:list[int], Color:str):
         self.Tap = True
         if issubclass(type(Target), Mushi):
-            r = Target.Damage(DamageAndBuff[0] + self.Atk_result, Color)
+            r = Target.Damage(DamageAndBuff[0] + self.Attack_result, Color)
             Target.HPBuff  -= DamageAndBuff[1]
-            Target.AtkBuff -= DamageAndBuff[2]
+            Target.AttackBuff -= DamageAndBuff[2]
         else:
-            Target.P_Damage(True)
+            Target.PlayerDamage(True)
             r = False
         
         return r
         
-    def _EnUraAtk(self, Target, Damage_i:int, Color:str):
+    def EnemyUraAttack(self, Target, Damage_i:int, Color:str):
         self.Tap = True
         if issubclass(type(Target), Mushi):
-            print("enura true")
             Target.Ura = True
         else:
-            Target.P_Damage(True)
+            Target.PlayerDamage(True)
             
         return False
             
     def Play(self):
         pass
 
+# 術カード実装
+class IbukiOfMushi(Jutsu):
+    def __init__(self):
+        super().__init__("蟲の息吹", "MUSHI 127/130", 1)
+        self.Charge = True
+
+    def Play(self):
+        pass
+
+class Bakunetsu(Jutsu):
+    def __init__(self):
+        super().__init__("塵芥虫の爆熱弾", "", 1)
+        self.Choosable = True
+        
+    def Play(self, Mushi: Mushi):
+        return Mushi.Damage(600, None)
+
+# 強化カード実装
+class MinoKaku(Kyoka):
+    def __init__(self):
+        super().__init__("蓑虫の隠れ蓑", "MUSHI 106/130", 0)
+        self.Buffer = True
+        self.BuffList = [500,0]
+
+    def Play(self):
+        pass
+
+# 蟲カード実装
 class SampleM(Mushi):
     def __init__(self):
         super().__init__("サンプルムシ", "0", 1, 100, 'Red')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"シンプルに攻撃", 'damage':100}, 
-                        {'method':self._BuffAtk, 'name':"シンプルに強化", 'damage':[0,0,100]}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"シンプルに攻撃", 'damage':100}, 
+                        {'method':self.BuffAttack, 'name':"シンプルに強化", 'damage':[0,0,100]}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
         
-    def _BuffAtk(self, Target, DamageAndBuff:List[int], Color:str):
-        return super()._BuffAtk(Target, DamageAndBuff, Color)
+    def BuffAttack(self, Target, DamageAndBuff:list[int], Color:str):
+        return super().BuffAttack(Target, DamageAndBuff, Color)
     
     def Play(self):
         pass
@@ -177,10 +175,10 @@ class SampleM(Mushi):
 class GinYanma(Mushi):
     def __init__(self):
         super().__init__("ギンヤンマ", "MUSHI 6/130", 5, 1100, 'Red')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"とびかかる", 'damage':700}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"とびかかる", 'damage':700}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass
@@ -188,10 +186,10 @@ class GinYanma(Mushi):
 class KooniYanma(Mushi):
     def __init__(self):
         super().__init__("コオニヤンマ", "MUSHI 11/130", 4, 800, 'Red')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"とびかかる", 'damage':500}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"とびかかる", 'damage':500}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass
@@ -199,10 +197,10 @@ class KooniYanma(Mushi):
 class Akiakane(Mushi):
     def __init__(self):
         super().__init__("アキアカネ", "MUSHI 24/130", 2, 500, 'Red')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"とびかかる", 'damage':200}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"とびかかる", 'damage':200}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass
@@ -210,10 +208,10 @@ class Akiakane(Mushi):
 class NamiTentou(Mushi):
     def __init__(self):
         super().__init__("ナミテントウ", "MUSHI 30/130", 1, 300, 'Red')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"かみつぶす", 'damage':100}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"かみつぶす", 'damage':100}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass
@@ -221,14 +219,14 @@ class NamiTentou(Mushi):
 class KabutoMushi(Mushi):
     def __init__(self):
         super().__init__("カブトムシ", "MUSHI 40/130", 4, 800, 'Blue')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"ツノ突進", 'damage':500},
-                        {'method':self._EnUraAtk, 'name':"すくい投げ", 'damage':0}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"ツノ突進", 'damage':500},
+                        {'method':self.EnemyUraAttack, 'name':"すくい投げ", 'damage':0}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
         
-    def _EnUraAtk(self, Target, Damage_i:int, Color:str):
-        return super()._EnUraAtk(Target, Damage_i, Color)
+    def EnemyUraAttack(self, Target, Damage_i:int, Color:str):
+        return super().EnemyUraAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass
@@ -236,14 +234,14 @@ class KabutoMushi(Mushi):
 class NamiAgeha(Mushi):
     def __init__(self):
         super().__init__("ナミアゲハ", "MUSHI 44/130", 4, 1100, 'Blue')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"すいつくす", 'damage':300}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"すいつくす", 'damage':300}]
         self.Blocker = True
         
     def Refresh(self):
         super().Refresh()
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
         
     def Play(self):
         pass
@@ -251,14 +249,14 @@ class NamiAgeha(Mushi):
 class MinZemi(Mushi):
     def __init__(self):
         super().__init__("ミンミンゼミ", "MUSHI 47/130", 3, 500, 'Blue')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"しぼりとる", 'damage':200}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"しぼりとる", 'damage':200}]
         self.Tobidasu = True
         
     def Refresh(self):
         super().Refresh()
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
         
     def Play(self):
         pass
@@ -266,10 +264,10 @@ class MinZemi(Mushi):
 class Kanaboon(Mushi):
     def __init__(self):
         super().__init__("カナブン", "MUSHI 63/130", 1, 300, 'Blue')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"たいあたり", 'damage':100}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"たいあたり", 'damage':100}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass
@@ -277,10 +275,10 @@ class Kanaboon(Mushi):
 class Higurashi(Mushi):
     def __init__(self):
         super().__init__("ヒグラシ", "MUSHI 64/130", 2, 200, 'Blue')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"しぼりとる", 'damage':200}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"しぼりとる", 'damage':200}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass
@@ -288,10 +286,10 @@ class Higurashi(Mushi):
 class TonosamaBatta(Mushi):
     def __init__(self):
         super().__init__("トノサマバッタ", "MUSHI 71/130", 5, 1200, 'Green')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"くらいつく", 'damage':700}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"くらいつく", 'damage':700}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass
@@ -299,17 +297,17 @@ class TonosamaBatta(Mushi):
 class NamiYou(Mushi):
     def __init__(self):
         super().__init__("ナミアゲハ（幼虫）", "MUSHI 79/130", 3, 700, 'Green')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"かじる", 'damage':200},
-                        {'method':self._DebuffAtk, 'name':"くさいツノ", 'damage':[0,0,400]}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"かじる", 'damage':200},
+                        {'method':self.DebuffAttack, 'name':"くさいツノ", 'damage':[0,0,400]}]
         
     def Refresh(self):
         super().Refresh()
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
 
-    def _DebuffAtk(self, Target, DamageAndBuff:List[int], Color:str):
-        return super()._DebuffAtk(Target, DamageAndBuff, Color)
+    def DebuffAttack(self, Target, DamageAndBuff:list[int], Color:str):
+        return super().DebuffAttack(Target, DamageAndBuff, Color)
         
     def Play(self):
         pass
@@ -317,14 +315,14 @@ class NamiYou(Mushi):
 class NanaModo(Mushi):
     def __init__(self):
         super().__init__("ナナフシモドキ", "MUSHI 80/130", 3, 400, 'Green')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"かぶりつく", 'damage':400}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"かぶりつく", 'damage':400}]
         self.Gitai = True
         
     def Refresh(self):
         super().Refresh()
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
         
     def Play(self):
         pass
@@ -332,10 +330,10 @@ class NanaModo(Mushi):
 class NijuyahoshiTentou(Mushi):
     def __init__(self):
         super().__init__("ニジュウヤホシテントウ", "MUSHI 91/130", 2, 300, 'Green')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"かみつぶす", 'damage':300}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"かみつぶす", 'damage':300}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass
@@ -343,10 +341,10 @@ class NijuyahoshiTentou(Mushi):
 class WataAburaMushi(Mushi):
     def __init__(self):
         super().__init__("ワタアブラムシ", "MUSHI 95/130", 1, 300, 'Green')
-        self.AtkList = [{'method':self._SimpleAtk, 'name':"とびかかる", 'damage':100}]
+        self.AttackList = [{'method':self.SimpleAttack, 'name':"とびかかる", 'damage':100}]
     
-    def _SimpleAtk(self, Target, Damage_i:int, Color:str):
-        return super()._SimpleAtk(Target, Damage_i, Color)
+    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+        return super().SimpleAttack(Target, Damage_i, Color)
     
     def Play(self):
         pass

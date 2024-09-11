@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""実行ファイル
+"""
+テスト用実行ファイル
 
-このファイルを実行することによってゲームを実行する。
+このファイルを実行することによってゲームのテストを実行する。
 
 """
 
@@ -30,8 +31,6 @@ def test():
         pl_2.TurnStart(pl_1)
         if pl_1.GameSet or pl_2.GameSet:
             break
-        
-    print("ゲームセット！")
-    
+
 if __name__ == "__main__":
     test()
