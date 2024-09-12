@@ -13,6 +13,12 @@ import random
 from typing import Union
 from cards import Card, Mushi, Jutsu, Kyoka
 
+def IsInt(str: str) -> bool:
+    try:
+        int(str)
+        return True
+    except:
+        return False
 
 def IntInputLoop(message:str, end: int, start: int=0) -> int:
     """
@@ -33,13 +39,17 @@ def IntInputLoop(message:str, end: int, start: int=0) -> int:
     """
     print()
     while True:
-        res = int(input(message))
+        input_s = input(message)
+        while not IsInt(input_s):
+            input_s = input(message)
+        res = int(input_s)
+        
         print("\n====================================================================\n")
+        
         if start <= res and res <= end:
             break
-        else:
-            print("入力値が範囲外です(適正入力値: " + str(start) + "~" + str(end) + ")")
-            
+        print("入力値が範囲外です(適正入力値: " + str(start) + "~" + str(end) + ")")
+        
     return res
 
 class Player:
@@ -59,10 +69,13 @@ class Player:
             ShowMyInfo(): 自プレイヤーの知り得る情報を表示する。
             ShowEnemyPlayerInfo(): 相手プレイヤーの知り得る情報を表示する。
             ShowEnemyAttackableMushiInfo(): 自プレイヤーの虫が攻撃可能な、相手プレイヤーの場の虫を表示する。
-            ShorChoosableMushiInfo(): 能力や術、強化カードによって選択可能な、自プレイヤーの場の虫を表示する。
+            ShowChoosableMushiInfo(): 能力や術、強化カードによって選択可能な、自プレイヤーの場の虫を表示する。
+            ShowNawabariInfo(): 引くために縄張りの一覧を表示する。
+            
             PlayMushi(): 虫カードをプレイする。
             PlayJutsu(): 術カードをプレイする。対象選択が必要な術なら対象選択を行わせる。
             PlayKyoka(): 強化カードをプレイする。自プレイヤーの虫から対象選択を行わせる。
+            
             AttackMushi(): 入力された番号に対応した場の虫が攻撃可能かどうかを判定する。
             AttackMushiChoice(): 虫の攻撃対象を選択し、攻撃を行う。
             TurnStart(): プレイヤーのターン中の行動を処理する。
@@ -172,14 +185,14 @@ class Player:
         for MyMushi in self.__BattleZone:
             MyMushi.Refresh()
     
-    def GetBZLen(self) -> int:
+    def GetBattleZoneLength(self) -> int:
         return len(self.__BattleZone)
     
     def ShuffleDeck(self) -> None:
         random.shuffle(self.__Deck)
         # self.PrintCards(self.__Deck)
 
-    def CntCost(self) -> int:
+    def CountCost(self) -> int:
         self.Costs = len(self.__Esaba)
         return self.Costs
 
@@ -204,7 +217,7 @@ class Player:
     def PlayJutsu(self, Jutsu: 'Jutsu') -> None:
         if Jutsu.Choosable:
             self.ShowEnemyPlayerInfo()
-            select_mushi = IntInputLoop("対象を選んでください（キャンセルする場合は-1）: ", self.EnemyPlayer.GetBZLen()-1, -1)
+            select_mushi = IntInputLoop("対象を選んでください（キャンセルする場合は-1）: ", self.EnemyPlayer.GetBattleZoneLength()-1, -1)
             if select_mushi == -1:
                 return
             if Jutsu.Play(self.EnemyPlayer.__BattleZone[select_mushi]):
@@ -219,7 +232,7 @@ class Player:
 
     def PlayKyoka(self, Kyoka: 'Kyoka') -> None:
         self.ShowChoosableMushiInfo()
-        select_mushi = IntInputLoop("対象を選んでください: ", self.GetBZLen()-1)
+        select_mushi = IntInputLoop("対象を選んでください: ", self.GetBattleZoneLength()-1)
         self.__BattleZone[select_mushi].Kyokas.append(Kyoka)
         
         if Kyoka.Buffer:
@@ -227,7 +240,8 @@ class Player:
 
     def Play(self, Num:int) -> None:
         p_card = self.__Hands[Num]
-        if p_card.Cost <= self.Costs:
+        
+        if self.CanPlayCard(p_card):
             p_card = self.__Hands.pop(Num)
             self.Costs -= p_card.Cost
         else:
@@ -240,7 +254,7 @@ class Player:
             if self.PlayJutsu(p_card) == 0:
                 self.__Hands.append(p_card)
         elif issubclass(type(p_card), Kyoka):
-            if self.GetBZLen() != 0:
+            if self.GetBattleZoneLength() != 0:
                 self.PlayKyoka(p_card)
             else:
                 print("強化対象が存在しません\n")
@@ -251,6 +265,9 @@ class Player:
             return
         
         print("\n" + p_card.Name + " をプレイしました\n")
+
+    def CanPlayCard(self, p_card: Card) -> bool:
+        return (p_card.Cost <= self.Costs)
 
     def AttackMushi(self, Num:int) -> None:
         mushi = self.__BattleZone[Num]
@@ -268,7 +285,7 @@ class Player:
             return
         if len(self.EnemyPlayer.__BattleZone) > 0:
             self.ShowEnemyAttackableMushiInfo()
-            select_mushi = IntInputLoop("対象を選んでください（キャンセルする場合は-1）: ", self.EnemyPlayer.GetBZLen()-1, -1)
+            select_mushi = IntInputLoop("対象を選んでください（キャンセルする場合は-1）: ", self.EnemyPlayer.GetBattleZoneLength()-1, -1)
             if select_mushi == -1:
                 return
             self.AttackMushiExecute(Mushi, select_attack, self.EnemyPlayer.__BattleZone[select_mushi])
@@ -308,13 +325,13 @@ class Player:
         self.BattleZoneRefresh()
         
         self.Draw()
-        self.CntCost()
+        self.CountCost()
         
         self.ShowEnemyPlayerInfo()
         self.ShowMyInfo()
         
         self.CostSelectAndPut()
-        self.CntCost()
+        self.CountCost()
         
         self.PlayerActionLoop()
         
