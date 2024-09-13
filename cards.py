@@ -1,11 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""
+Cardクラス及びそのサブクラス定義
+
+このモジュールはカードをクラスとして提供する。
+カードは名前、ID、コストの固定の値の他に、裏返し状態やその他固有の値やメソッドを持つ。
+
+"""
+
 from abc import ABC,abstractmethod
 
 WeakDic = {'Red':'Blue', 'Blue':'Green', 'Green':'Red'}
 
 class Card(ABC):
+    """
+    カードを表すクラス
+    
+    このクラスは抽象クラスであり、全カードが共通で持つ値を提供する。
+    
+    Methods:
+        Play(): カードプレイ時の挙動。
+    
+    Attributes:
+        Name (str): カード名。
+        ID (str): カードID。
+        Cost (int): カードの持つコスト。
+        Ura (bool): 裏向きかどうか。
+        Charge (bool): 捨て札に置く代わりにエサ場に置くかどうか。
+    
+    """
     def __init__(self, Name:str, ID:str, Cost:int):
         self.Name   = Name
         self.ID     = ID
@@ -18,6 +42,15 @@ class Card(ABC):
         pass
 
 class Jutsu(Card):
+    """
+    術カードを表すクラス
+    
+    このクラスは抽象クラスであり、術カードが共通で持つ値を提供する。
+    
+    Attributes:
+        Choosable (bool): プレイ時に対象選択が必要かどうか。
+    
+    """
     def __init__(self, Name:str, ID:str, Cost:int):
         super().__init__(Name, ID, Cost)
         self.Choosable = False
@@ -26,6 +59,16 @@ class Jutsu(Card):
         pass
 
 class Kyoka(Card):
+    """
+    強化カードを表すクラス
+    
+    このクラスは抽象クラスであり、強化カードが共通で持つ値を提供する。
+    
+    Attributes:
+        Buffer (bool): 虫カードに対してステータスの強化を行うかどうか。
+        BuffList (list[int]): 虫カードへの体力と攻撃力の強化値。
+    
+    """
     def __init__(self, Name:str, ID:str, Cost:int):
         super().__init__(Name, ID, Cost)
         self.Buffer = False
@@ -35,38 +78,65 @@ class Kyoka(Card):
         pass
 
 class Mushi(Card):
+    """
+    虫カードを表すクラス
+    
+    このクラスは抽象クラスであり、虫カードが共通で持つ値及びメソッドを提供する。
+    
+    Attributes:
+        HP (int): 体力
+        Color (str): 色
+        Kyokas (list[Kyoka]): 虫に付いている強化カードのリスト
+        AttackList (list[method]): 虫が持つ攻撃のリスト
+        HPBuff (int): 体力の増加値
+        AttackBuff (int): 攻撃力の増加値
+        Blocker (bool): ＜りんぷん＞及び＜鳴く＞を持つかどうか
+        Gitai (bool): ＜擬態＞を持つかどうか
+        Tobidasu (bool): ＜とびだす＞を持つかどうか
+    
+    Methods:
+        Refresh(): ターン開始時の処理。体力を回復し、バフをリセット、再計算する。
+        DirectHPBuff(): 虫のHPを増やす。
+        Damage(): 虫にダメージを与え、破壊されたかどうかを返す。
+        _Broke(): 虫の破壊時処理を行う。
+        SimpleAttack(): 攻撃を行い、虫を破壊したかどうかを返す。
+        BuffAttack(): 攻撃を行い、次のターンにステータスを増加させる。虫を破壊したかどうかを返す
+        DebuffAttack(): 攻撃を行い、次のターンに対象のステータスを減少させる。虫を破壊したかどうかを返す
+        EnemyUraAttack(): このターン中対象を裏返しにする。
+    
+    """
     def __init__(self, Name:str, ID:str, Cost:int, HP:int, Color:str):
         super().__init__(Name, ID, Cost)
         self.HP         = HP
         self.Color      = Color
         self.Kyokas     = []
-        self.AttackList    = []
+        self.AttackList = []
         self.HPBuff     = 0
-        self.AttackBuff    = 0
+        self.AttackBuff = 0
         self.Blocker    = False
         self.Gitai      = False
         self.Tobidasu   = False
         self.Refresh()
-        
-    def Refresh(self):
+    
+    def Refresh(self) -> None:
         for kyoka in self.Kyokas:
             if kyoka.Buffer:
                 self.HPBuff += kyoka.BuffList[0]
                 self.AttackBuff += kyoka.BuffList[1]
         
-        self.HP_result  = self.HP + self.HPBuff
+        self.HP_result     = self.HP + self.HPBuff
         self.Attack_result = self.AttackBuff
-        self.HPBuff     = 0
+        self.HPBuff        = 0
         self.AttackBuff    = 0
-        self.Tap        = False
-        self.Ura        = False
-        self.Gitai      = False
-        
-    def DirectHPBuff(self, BuffNum:int):
+        self.Tap           = False
+        self.Ura           = False
+        self.Gitai         = False
+    
+    def DirectHPBuff(self, BuffNum:int) -> None:
         print(self.Name + " のHPが " + str(BuffNum) + " 増えた")
         self.HP_result += BuffNum
     
-    def Damage(self, Damage_i:int, Color:str):
+    def Damage(self, Damage_i:int, Color:str) -> bool:
         if Damage_i < 0:
             dam_result = 0
         else:
@@ -81,10 +151,10 @@ class Mushi(Card):
             print(self.Name + " の残り体力: " + str(self.HP_result) + "\n")
             return False
     
-    def _Broke(self):
+    def _Broke(self) -> None:
         pass
     
-    def SimpleAttack(self, Target, Damage_i:int, Color:str):
+    def SimpleAttack(self, Target, Damage_i:int, Color:str) -> bool:
         self.Tap = True
         if issubclass(type(Target), Mushi):
             return Target.Damage(Damage_i+self.Attack_result, Color)
@@ -92,7 +162,7 @@ class Mushi(Card):
             Target.PlayerDamage(True)
             return False
     
-    def BuffAttack(self, Target, DamageAndBuff:list[int], Color:str):
+    def BuffAttack(self, Target, DamageAndBuff:list[int], Color:str) -> bool:
         self.Tap = True
         if issubclass(type(Target), Mushi):
             r = Target.Damage(DamageAndBuff[0]+self.Attack_result, Color)
@@ -105,7 +175,7 @@ class Mushi(Card):
         
         return r
     
-    def DebuffAttack(self, Target, DamageAndBuff:list[int], Color:str):
+    def DebuffAttack(self, Target, DamageAndBuff:list[int], Color:str) -> bool:
         self.Tap = True
         if issubclass(type(Target), Mushi):
             r = Target.Damage(DamageAndBuff[0] + self.Attack_result, Color)
@@ -116,16 +186,15 @@ class Mushi(Card):
             r = False
         
         return r
-        
-    def EnemyUraAttack(self, Target, Damage_i:int, Color:str):
+    
+    def EnemyUraAttack(self, Target, Damage_i:int, Color:str) -> bool:
         self.Tap = True
         if issubclass(type(Target), Mushi):
             Target.Ura = True
         else:
             Target.PlayerDamage(True)
-            
         return False
-            
+    
     def Play(self):
         pass
 

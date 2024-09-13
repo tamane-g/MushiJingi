@@ -26,9 +26,12 @@ def test():
     pl_1 = Player("Player_1", deck_1)
     pl_2 = Player("Player_2", deck_2)
     
+    pl_1.SetEnemyPlayer(pl_2)
+    pl_2.SetEnemyPlayer(pl_1)
+    
     while True:
-        pl_1.TurnStart(pl_2)
-        pl_2.TurnStart(pl_1)
+        pl_1.TurnStart()
+        pl_2.TurnStart()
         if pl_1.GameSet or pl_2.GameSet:
             break
 

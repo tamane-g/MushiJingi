@@ -61,7 +61,7 @@ class Player:
 
     Methods:
         UI Methods:
-            PrintCards(Cards: list[Card], AddNum: int=0, UraShow: bool=True, MushiShow: bool=False) -> None:
+            PrintCards(Cards: list[Card], AddNum: int=0, UraShow: bool=True, MushiShow: bool=False):
                 通し番号付きでCardsの情報を表示する。通し番号はAddNumから始まる。
                 UraShowがFalseなら、裏向きの場のカードは表示されない。
                 MushiShowがTrueなら、虫カードによって攻撃可能な虫カードのみが表示される(擬態中の虫や鳴く・鱗粉と並んでいる虫は表示されない。)。
@@ -71,17 +71,50 @@ class Player:
             ShowEnemyAttackableMushiInfo(): 自プレイヤーの虫が攻撃可能な、相手プレイヤーの場の虫を表示する。
             ShowChoosableMushiInfo(): 能力や術、強化カードによって選択可能な、自プレイヤーの場の虫を表示する。
             ShowNawabariInfo(): 引くために縄張りの一覧を表示する。
+            ShowMushiWaza(): 虫が使用可能な技の一覧を表示する。
+            CostSelectAndPut(): 手札から、エサ場にセットするカードを選択させる。
             
-            PlayMushi(): 虫カードをプレイする。
+            PlayMushi(): 虫カードをプレイする。プレイ時効果をもち、対象選択が必要なら対象選択を行わせる（つもり）。
             PlayJutsu(): 術カードをプレイする。対象選択が必要な術なら対象選択を行わせる。
             PlayKyoka(): 強化カードをプレイする。自プレイヤーの虫から対象選択を行わせる。
             
-            AttackMushi(): 入力された番号に対応した場の虫が攻撃可能かどうかを判定する。
-            AttackMushiChoice(): 虫の攻撃対象を選択し、攻撃を行う。
-            TurnStart(): プレイヤーのターン中の行動を処理する。
-            TurnEnd(): プレイヤーのターン終了時の処理を行う（つもり）。
+            AttackMushiChoice(): 虫の攻撃対象を選択させる。
+            UseTobidasuCheck(): ＜とびだす＞を持ち、発動可能なら、発動するか選択させる。
+            DrawNawabariChoice(): プレイヤーが引く縄張りを選択させる。
+            Lose(): 敗北処理を行い、敗北したことを表示させる。
+        
+        Logic Methods:
+            SetEnemyPlayer(): 敵プレイヤーを設定する。
+            BattleZoneRefresh(): 場の虫全てのターン開始時処理を行う。
+            GetBattleZoneLength(): 場の虫の枚数を返す。
+            ShuffleDeck(): デッキをシャッフルする。
+            CountCost(): エサ場の枚数を返す。これはこのターン中に使用可能なコストの数と等しいとは限らない。
+            Draw(): 山札からカードを1枚引く。
+            PutCost(): 渡された札をエサ場にセットする。
+            Play(): 渡された値番目の手札がプレイ可能か判定し、可能ならプレイする。
+            AttackMushi(): 入力された番号に対応した場の虫が攻撃済みでないかどうかを判定し、可能なら攻撃する。
+            AttackMushiExecute(): 攻撃を実行する。
+            PlayerActionLoop(): プレイヤーのメインフェイズの処理を行う。
+            TurnStart(): プレイヤーのターン全体の行動を処理する。
+            TurnEnd(): プレイヤーのターン終了時の行動を処理する（つもり）。
+            BrokeMushi(): プレイヤーの場の虫の破壊処理を行う。
+            IsTobidasuInBattleZone(): 場に＜とびだす＞を持つ虫が既にいるか判定する。
+            DrawNawabari(): 選択された縄張りを引く。
             PlayerDamage(): プレイヤーへのダメージの処理を行う。
-            Lose(): 敗北処理を行う。
+    
+    Attributes:
+        __Deck (list[Card]): プレイヤーの山札。
+        __BattleZone (list[Card]): プレイヤーの場。
+        __Nawabari (list[Card]): プレイヤーの縄張り。
+        __Hands (list[Card]): プレイヤーの手札。
+        __Bochi (list[Card]): プレイヤーの捨て札。
+        __Esaba (list[Card]): プレイヤーのエサ場。
+        
+        EnemyPlayer (Player): 相手プレイヤー。
+        Name (str): プレイヤーの名前。
+        Turn (int): 現在のターン。
+        Costs (int): 現在使用可能なコストの数。
+        GameSet (bool): ゲームが終了済みかどうか。
     
     """
 
@@ -178,16 +211,16 @@ class Player:
         print(self.Name + "\n縄張り:")
         self.PrintCards(self.__Nawabari)
 
-    def EnemyPlayerRefresh(self, EnemyPlayer: 'Player') -> None:
+    def SetEnemyPlayer(self, EnemyPlayer: 'Player') -> None:
         self.EnemyPlayer = EnemyPlayer
-    
+
     def BattleZoneRefresh(self) -> None:
         for MyMushi in self.__BattleZone:
             MyMushi.Refresh()
-    
+
     def GetBattleZoneLength(self) -> int:
         return len(self.__BattleZone)
-    
+
     def ShuffleDeck(self) -> None:
         random.shuffle(self.__Deck)
         # self.PrintCards(self.__Deck)
@@ -201,15 +234,15 @@ class Player:
         self.__Hands.append(drawed)
         return drawed
 
-    def PutCost(self, Num: int) -> None:
-        put = self.__Hands.pop(Num)
-        self.__Esaba.append(put)
-        print("\n" + put.Name + " をエサ場にセットしました\n")
+    def PutCost(self, PutCard: Card) -> None:
+        self.__Esaba.append(PutCard)
+        print("\n" + PutCard.Name + " をエサ場にセットしました\n")
 
     def CostSelectAndPut(self) -> None:
         select_num = IntInputLoop("餌に置くカードを選んでください（置かないなら-1）: ", len(self.__Hands)-1, -1)
         if select_num != -1:
-            self.PutCost(select_num)
+            put_card = self.__Hands.pop(select_num)
+            self.PutCost(put_card)
 
     def PlayMushi(self, Mushi: Mushi) -> None:
         self.__BattleZone.append(Mushi)
@@ -236,7 +269,7 @@ class Player:
         self.__BattleZone[select_mushi].Kyokas.append(Kyoka)
         
         if Kyoka.Buffer:
-            self.__BattleZone[select_mushi].DirectHPBuff(Kyoka.Bufflist[0])
+            self.__BattleZone[select_mushi].DirectHPBuff(Kyoka.BuffList[0])
 
     def Play(self, Num:int) -> None:
         p_card = self.__Hands[Num]
@@ -298,6 +331,15 @@ class Player:
             print(str(Attack) + ": " + Mushi.AttackList[Attack]['name'] + " " + str(Mushi.AttackList[Attack]['damage']) + " (+" + str(Mushi.Attack_result) + ")")
 
     def AttackMushiExecute(self, Mushi: Mushi, select_attack: int, Target: Union[Mushi, 'Player']):
+        """
+        虫の攻撃を実行する。
+        
+        Args:
+            Mushi (Mushi): 攻撃を実行する虫。
+            select_attack (int): 虫が使用する攻撃の番号。
+            Target (Union[Mushi, 'Player']): 虫の攻撃する対象。
+        
+        """
         if Mushi.AttackList[select_attack]['method'](Target, Mushi.AttackList[select_attack]['damage'], Mushi.Color):
             if isinstance(Target, Mushi):
                 self.EnemyPlayer.BrokeMushi(self.EnemyPlayer.__BattleZone.index(Target), True)
@@ -316,9 +358,7 @@ class Player:
             else:
                 return
 
-    def TurnStart(self, EnemyPlayer: 'Player') -> None:
-        self.EnemyPlayerRefresh(EnemyPlayer)
-        
+    def TurnStart(self) -> None:
         if self.GameSet or self.EnemyPlayer.GameSet:
             return
         
@@ -341,6 +381,14 @@ class Player:
         pass
 
     def BrokeMushi(self, MushiNum: int, Direct: bool) -> None:
+        """
+        虫の破壊処理を行う。
+        
+        Args:
+            MushiNum (int): 破壊された虫の場における番号
+            Direct (bool): 破壊が虫の攻撃による破壊かどうか。術や効果による破壊ならばプレイヤーは縄張りを引かない。
+        
+        """
         self.__Bochi.append(self.__BattleZone.pop(MushiNum))
         if Direct:
             self.PlayerDamage(False)
@@ -348,7 +396,7 @@ class Player:
     def IsTobidasuInBattleZone(self) -> bool:
         return any(mushi.Tobidasu for mushi in self.__BattleZone)
 
-    def HasTobidasuCheck(self, draw_nawabari: Card) -> bool:
+    def UseTobidasuCheck(self, draw_nawabari: Card) -> bool:
         if issubclass(type(draw_nawabari), Mushi):
             if draw_nawabari.Tobidasu:
                 print(draw_nawabari.Name + "は＜とびだす＞を持っている！場に出しますか？\n\n0: 場に出さない\n1: 場に出す")
@@ -368,6 +416,13 @@ class Player:
         return draw_nawabari
 
     def PlayerDamage(self, Direct: bool) -> None:
+        """
+        プレイヤーへのダメージ処理を行う。
+        
+        Args:
+            Direct (bool): ダメージが虫のプレイヤーへの直接攻撃かどうか。直接攻撃でないなら、縄張りが0枚でも敗北にならない。
+        
+        """
         if Direct:
             print(self.Name + " への直接攻撃！！")
             
@@ -379,7 +434,7 @@ class Player:
             
             if self.IsTobidasuInBattleZone():
                 self.__Hands.append(draw_nawabari)
-            elif self.HasTobidasuCheck(draw_nawabari):
+            elif self.UseTobidasuCheck(draw_nawabari):
                 self.PlayMushi(draw_nawabari)
                 print(draw_nawabari.Name + "がとびだした！\n")
             else:
